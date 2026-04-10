@@ -16,6 +16,8 @@ import java.util.*;
 @Service
 public class ExcelServiceImpl implements ExcelService {
     private final AppProperties props;
+    private final DataFormatter dataFormatter = new DataFormatter();
+
 
     public ExcelServiceImpl(AppProperties props) {
         this.props = props;
@@ -100,20 +102,7 @@ public class ExcelServiceImpl implements ExcelService {
 
     private String readCellAsString(Cell cell) {
         if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> {
-                double d = cell.getNumericCellValue();
-                if (d == Math.floor(d)) {
-                    yield String.valueOf((long) d);
-                }
-                yield String.valueOf(d);
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> cell.getCellFormula();
-            case BLANK -> "";
-            default -> "";
-        };
+        return dataFormatter.formatCellValue(cell).trim();
     }
 
     private String normalize(String value) {

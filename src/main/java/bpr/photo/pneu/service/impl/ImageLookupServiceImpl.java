@@ -28,6 +28,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
                 .build();
     }
 
+    @Override
     public LookupResult findImageUrl(String ean) {
         String url = props.getRequest().getBaseUrl().replace("{ean}", ean);
 
@@ -88,6 +89,4 @@ public class ImageLookupServiceImpl implements ImageLookupService {
 
         return new LookupResult(ean, node.asText(), "OK");
     }
-
-    public record LookupResult(String ean, String imageUrl, String status) {}
 }

@@ -1,8 +1,8 @@
 package bpr.photo.pneu.service;
 
-import bpr.photo.pneu.service.impl.ImageLookupServiceImpl;
-
 public interface ImageLookupService {
-    ImageLookupServiceImpl.LookupResult findImageUrl(String ean);
 
+    LookupResult findImageUrl(String ean);
+
+    record LookupResult(String ean, String imageUrl, String status) {}
 }
