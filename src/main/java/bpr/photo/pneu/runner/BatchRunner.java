@@ -1,7 +1,6 @@
 package bpr.photo.pneu.runner;
 
 import bpr.photo.pneu.service.ExcelService;
-import bpr.photo.pneu.service.ImageLookupService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -13,11 +12,9 @@ import java.util.Map;
 public class BatchRunner implements CommandLineRunner {
 
     private final ExcelService excelService;
-    private final ImageLookupService imageLookupService;
 
-    public BatchRunner(ExcelService excelService, ImageLookupService imageLookupService) {
+    public BatchRunner(ExcelService excelService) {
         this.excelService = excelService;
-        this.imageLookupService = imageLookupService;
     }
 
     @Override

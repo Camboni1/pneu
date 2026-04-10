@@ -11,12 +11,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class ExcelServiceImpl implements ExcelService {
+
     private final AppProperties props;
     private final ImageLookupService imageLookupService;
+    private final DataFormatter dataFormatter = new DataFormatter();
 
     public ExcelServiceImpl(AppProperties props, ImageLookupService imageLookupService) {
         this.props = props;
@@ -24,7 +27,7 @@ public class ExcelServiceImpl implements ExcelService {
     }
 
     @Override
-    public void processFile(Path inputPath, Path outputPath, ImageLookupService imageLookupService) throws Exception {
+    public void processFile(Path inputPath, Path outputPath) throws Exception {
         try (InputStream is = Files.newInputStream(inputPath);
              Workbook workbook = new XSSFWorkbook(is)) {
 
@@ -55,7 +58,7 @@ public class ExcelServiceImpl implements ExcelService {
                 }
 
                 String ean = readCellAsString(row.getCell(eanCol));
-                if (ean == null || ean.isBlank()) {
+                if (ean.isBlank()) {
                     writeCell(row, statusCol, "EAN_EMPTY");
                     continue;
                 }
@@ -86,6 +89,7 @@ public class ExcelServiceImpl implements ExcelService {
         if (headers.containsKey(key)) {
             return headers.get(key);
         }
+
         int index = headerRow.getLastCellNum() >= 0 ? headerRow.getLastCellNum() : 0;
         Cell cell = headerRow.createCell(index);
         cell.setCellValue(columnName);
@@ -116,4 +120,3 @@ public class ExcelServiceImpl implements ExcelService {
         }
     }
 }
-
