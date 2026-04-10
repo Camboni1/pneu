@@ -33,7 +33,7 @@ public class BatchRunner implements CommandLineRunner {
             );
         }
 
-        excelService.processFile(Path.of(input), Path.of(output), imageLookupService);
+        excelService.processFile(Path.of(input), Path.of(output));
         System.out.println("Terminé. Fichier généré : " + output);
     }
 

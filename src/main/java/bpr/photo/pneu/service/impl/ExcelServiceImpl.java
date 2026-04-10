@@ -16,13 +16,14 @@ import java.util.*;
 @Service
 public class ExcelServiceImpl implements ExcelService {
     private final AppProperties props;
-    private final DataFormatter dataFormatter = new DataFormatter();
+    private final ImageLookupService imageLookupService;
 
-
-    public ExcelServiceImpl(AppProperties props) {
+    public ExcelServiceImpl(AppProperties props, ImageLookupService imageLookupService) {
         this.props = props;
+        this.imageLookupService = imageLookupService;
     }
 
+    @Override
     public void processFile(Path inputPath, Path outputPath, ImageLookupService imageLookupService) throws Exception {
         try (InputStream is = Files.newInputStream(inputPath);
              Workbook workbook = new XSSFWorkbook(is)) {
