@@ -57,9 +57,9 @@ public class ImageLookupServiceImpl implements ImageLookupService {
             return parseHtml(ean, body, url);
 
         } catch (Exception e) {
+            log.error("Erreur pendant le traitement de l'EAN {}", ean, e);
             return new LookupResult(ean, "", "ERROR: " + e.getClass().getSimpleName());
         }
-
     }
 
     private LookupResult parseHtml(String ean, String body, String pageUrl) {

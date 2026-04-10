@@ -70,8 +70,12 @@ public class ExcelServiceImpl implements ExcelService {
                 log.info("EAN lu: {}", ean);
 
                 ImageLookupService.LookupResult result = imageLookupService.findImageUrl(ean.trim());
-                writeCell(row, imageCol, result.imageUrl());
-                writeCell(row, statusCol, result.status());
+
+                if ("OK".equals(result.status())) {
+                    log.info("Image trouvée pour {} : {}", ean, result.imageUrl());
+                } else {
+                    log.warn("Aucune image trouvée pour {}", ean);
+                }
             }
 
 
