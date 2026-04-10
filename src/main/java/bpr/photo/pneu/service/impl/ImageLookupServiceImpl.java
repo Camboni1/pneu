@@ -10,6 +10,8 @@ import org.jsoup.nodes.Element;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.time.Duration;
@@ -20,6 +22,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
     private final WebClient webClient;
     private final AppProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(ImageLookupServiceImpl.class);
 
     public ImageLookupServiceImpl(WebClient.Builder builder, AppProperties props) {
         this.props = props;
@@ -44,6 +47,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
                 return new LookupResult(ean, "", "EMPTY_RESPONSE");
             }
 
+
             String mode = props.getParsing().getMode();
 
             if ("json".equalsIgnoreCase(mode)) {
@@ -55,6 +59,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
         } catch (Exception e) {
             return new LookupResult(ean, "", "ERROR: " + e.getClass().getSimpleName());
         }
+
     }
 
     private LookupResult parseHtml(String ean, String body, String pageUrl) {
@@ -75,6 +80,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
         if (imageUrl == null || imageUrl.isBlank()) {
             return new LookupResult(ean, "", "IMAGE_ATTR_EMPTY");
         }
+
 
         return new LookupResult(ean, imageUrl, "OK");
     }

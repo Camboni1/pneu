@@ -13,3 +13,12 @@ app:
     ean-column-name: "ean"
     output-image-column-name: "image_url"
     output-status-column-name: "status"
+
+  logging:
+    level:
+      root: INFO
+      bpr.photo.pneu: DEBUG
+      reactor.netty.http.client: DEBUG
+      org.springframework.web.reactive.function.client: DEBUG
+    file:
+      name: logs/app.log

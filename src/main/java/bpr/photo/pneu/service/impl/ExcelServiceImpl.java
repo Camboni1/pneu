@@ -6,6 +6,8 @@ import bpr.photo.pneu.service.ImageLookupService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,6 +22,7 @@ public class ExcelServiceImpl implements ExcelService {
     private final AppProperties props;
     private final ImageLookupService imageLookupService;
     private final DataFormatter dataFormatter = new DataFormatter();
+    private static final Logger log = LoggerFactory.getLogger(ExcelServiceImpl.class);
 
     public ExcelServiceImpl(AppProperties props, ImageLookupService imageLookupService) {
         this.props = props;
@@ -35,6 +38,7 @@ public class ExcelServiceImpl implements ExcelService {
             if (sheet == null) {
                 throw new IllegalStateException("Feuille introuvable");
             }
+            log.info("Début du traitement du fichier: {}", inputPath);
 
             Row headerRow = sheet.getRow(sheet.getFirstRowNum());
             if (headerRow == null) {
@@ -47,6 +51,7 @@ public class ExcelServiceImpl implements ExcelService {
             if (eanCol == null) {
                 throw new IllegalStateException("Colonne EAN introuvable : " + props.getExcel().getEanColumnName());
             }
+
 
             int imageCol = ensureColumn(headerRow, headers, props.getExcel().getOutputImageColumnName());
             int statusCol = ensureColumn(headerRow, headers, props.getExcel().getOutputStatusColumnName());
@@ -62,17 +67,20 @@ public class ExcelServiceImpl implements ExcelService {
                     writeCell(row, statusCol, "EAN_EMPTY");
                     continue;
                 }
+                log.info("EAN lu: {}", ean);
 
                 ImageLookupService.LookupResult result = imageLookupService.findImageUrl(ean.trim());
                 writeCell(row, imageCol, result.imageUrl());
                 writeCell(row, statusCol, result.status());
             }
 
+
             autosize(sheet, imageCol, statusCol);
 
             try (OutputStream os = Files.newOutputStream(outputPath)) {
                 workbook.write(os);
             }
+
         }
     }
 
