@@ -1,6 +1,7 @@
 package bpr.photo.pneu.service.impl;
 
 import bpr.photo.pneu.config.AppProperties;
+import bpr.photo.pneu.service.ExcelService;
 import bpr.photo.pneu.service.ImageLookupService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,7 +14,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 @Service
-public class ExcelServiceImpl {
+public class ExcelServiceImpl implements ExcelService {
     private final AppProperties props;
 
     public ExcelServiceImpl(AppProperties props) {
