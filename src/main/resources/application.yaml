@@ -4,8 +4,8 @@ app:
     timeout-seconds: 20
     user-agent: "Mozilla/5.0 TireLookupBot/1.0"
   parsing:
-    mode: "html"   # html ou json
-    image-css-selector: "img.product-image"
+    mode: "html"
+    image-css-selector: "img.shop-thumb-img"
     image-attribute: "src"
     json-image-path: "/product/image"
   excel:
