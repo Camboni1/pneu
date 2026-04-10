@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 import java.net.URI;
 import java.time.Duration;
@@ -60,6 +63,23 @@ public class ImageLookupServiceImpl implements ImageLookupService {
             log.error("Erreur pendant le traitement de l'EAN {}", ean, e);
             return new LookupResult(ean, "", "ERROR: " + e.getClass().getSimpleName());
         }
+    }
+
+    @Override
+    public void downloadImage(String imageUrl, Path outputPath) throws Exception {
+        byte[] bytes = webClient.get()
+                .uri(URI.create(imageUrl))
+                .retrieve()
+                .bodyToMono(byte[].class)
+                .timeout(Duration.ofSeconds(props.getRequest().getTimeoutSeconds()))
+                .block();
+
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalStateException("Image vide ou introuvable : " + imageUrl);
+        }
+
+        Files.createDirectories(outputPath.getParent());
+        Files.write(outputPath, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
     private LookupResult parseHtml(String ean, String body, String pageUrl) {

@@ -38,6 +38,7 @@ public class ExcelServiceImpl implements ExcelService {
             if (sheet == null) {
                 throw new IllegalStateException("Feuille introuvable");
             }
+
             log.info("Début du traitement du fichier: {}", inputPath);
 
             Row headerRow = sheet.getRow(sheet.getFirstRowNum());
@@ -52,9 +53,11 @@ public class ExcelServiceImpl implements ExcelService {
                 throw new IllegalStateException("Colonne EAN introuvable : " + props.getExcel().getEanColumnName());
             }
 
-
             int imageCol = ensureColumn(headerRow, headers, props.getExcel().getOutputImageColumnName());
             int statusCol = ensureColumn(headerRow, headers, props.getExcel().getOutputStatusColumnName());
+
+            Path imagesDir = Path.of("output", "images");
+            Files.createDirectories(imagesDir);
 
             for (int i = headerRow.getRowNum() + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -67,24 +70,37 @@ public class ExcelServiceImpl implements ExcelService {
                     writeCell(row, statusCol, "EAN_EMPTY");
                     continue;
                 }
+
                 log.info("EAN lu: {}", ean);
 
                 ImageLookupService.LookupResult result = imageLookupService.findImageUrl(ean.trim());
+                String finalStatus = result.status();
 
                 if ("OK".equals(result.status())) {
                     log.info("Image trouvée pour {} : {}", ean, result.imageUrl());
+
+                    Path imagePath = imagesDir.resolve(ean.trim() + ".jpg");
+
+                    try {
+                        imageLookupService.downloadImage(result.imageUrl(), imagePath);
+                        log.info("Image téléchargée pour {} : {}", ean, imagePath.toAbsolutePath());
+                    } catch (Exception e) {
+                        log.error("Téléchargement impossible pour l'EAN {}", ean, e);
+                        finalStatus = "DOWNLOAD_ERROR";
+                    }
                 } else {
                     log.warn("Aucune image trouvée pour {}", ean);
                 }
-            }
 
+                writeCell(row, imageCol, result.imageUrl());
+                writeCell(row, statusCol, finalStatus);
+            }
 
             autosize(sheet, imageCol, statusCol);
 
             try (OutputStream os = Files.newOutputStream(outputPath)) {
                 workbook.write(os);
             }
-
         }
     }
 
