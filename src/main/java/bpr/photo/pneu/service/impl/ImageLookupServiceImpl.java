@@ -7,17 +7,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-
-import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Service
 public class ImageLookupServiceImpl implements ImageLookupService {
@@ -35,7 +40,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
     }
 
     @Override
-    public LookupResult findImageUrl(String ean) {
+    public LookupResult findImages(String ean) {
         String url = props.getRequest().getBaseUrl().replace("{ean}", ean);
 
         try {
@@ -47,9 +52,8 @@ public class ImageLookupServiceImpl implements ImageLookupService {
                     .block();
 
             if (body == null || body.isBlank()) {
-                return new LookupResult(ean, "", "EMPTY_RESPONSE");
+                return new LookupResult(ean, "", List.of(), "EMPTY_RESPONSE");
             }
-
 
             String mode = props.getParsing().getMode();
 
@@ -61,7 +65,7 @@ public class ImageLookupServiceImpl implements ImageLookupService {
 
         } catch (Exception e) {
             log.error("Erreur pendant le traitement de l'EAN {}", ean, e);
-            return new LookupResult(ean, "", "ERROR: " + e.getClass().getSimpleName());
+            return new LookupResult(ean, "", List.of(), "ERROR: " + e.getClass().getSimpleName());
         }
     }
 
@@ -79,30 +83,59 @@ public class ImageLookupServiceImpl implements ImageLookupService {
         }
 
         Files.createDirectories(outputPath.getParent());
-        Files.write(outputPath, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.write(
+                outputPath,
+                bytes,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING
+        );
     }
 
     private LookupResult parseHtml(String ean, String body, String pageUrl) {
         Document doc = Jsoup.parse(body, pageUrl);
-        Element img = doc.selectFirst(props.getParsing().getImageCssSelector());
 
-        if (img == null) {
-            return new LookupResult(ean, "", "IMAGE_NOT_FOUND");
+        Element primaryImg = doc.selectFirst(props.getParsing().getImageCssSelector());
+        String primaryImageUrl = "";
+
+        if (primaryImg != null) {
+            String attr = props.getParsing().getImageAttribute();
+            primaryImageUrl = primaryImg.absUrl(attr);
+
+            if (primaryImageUrl.isBlank()) {
+                primaryImageUrl = primaryImg.attr(attr);
+            }
         }
 
-        String attr = props.getParsing().getImageAttribute();
-        String imageUrl = img.absUrl(attr);
+        Elements secondaryAnchors = doc.select("a.colorbox[href]");
+        Set<String> secondarySet = new LinkedHashSet<>();
 
-        if (imageUrl == null || imageUrl.isBlank()) {
-            imageUrl = img.attr(attr);
+        for (Element anchor : secondaryAnchors) {
+            String href = anchor.absUrl("href");
+            if (href.isBlank()) {
+                href = anchor.attr("href");
+            }
+
+            if (!href.isBlank()) {
+                secondarySet.add(href);
+            }
         }
 
-        if (imageUrl == null || imageUrl.isBlank()) {
-            return new LookupResult(ean, "", "IMAGE_ATTR_EMPTY");
+        if (!primaryImageUrl.isBlank()) {
+            secondarySet.remove(primaryImageUrl);
         }
 
+        List<String> secondaryImages = new ArrayList<>(secondarySet);
 
-        return new LookupResult(ean, imageUrl, "OK");
+        if (primaryImageUrl.isBlank() && secondaryImages.isEmpty()) {
+            return new LookupResult(ean, "", List.of(), "IMAGE_NOT_FOUND");
+        }
+
+        if (primaryImageUrl.isBlank() && !secondaryImages.isEmpty()) {
+            primaryImageUrl = secondaryImages.get(0);
+            secondaryImages.remove(0);
+        }
+
+        return new LookupResult(ean, primaryImageUrl, secondaryImages, "OK");
     }
 
     private LookupResult parseJson(String ean, String body) throws Exception {
@@ -110,9 +143,9 @@ public class ImageLookupServiceImpl implements ImageLookupService {
         JsonNode node = root.at(props.getParsing().getJsonImagePath());
 
         if (node.isMissingNode() || node.isNull() || node.asText().isBlank()) {
-            return new LookupResult(ean, "", "IMAGE_NOT_FOUND");
+            return new LookupResult(ean, "", List.of(), "IMAGE_NOT_FOUND");
         }
 
-        return new LookupResult(ean, node.asText(), "OK");
+        return new LookupResult(ean, node.asText(), List.of(), "OK");
     }
 }

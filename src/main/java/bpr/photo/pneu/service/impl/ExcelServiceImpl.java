@@ -5,9 +5,9 @@ import bpr.photo.pneu.service.ExcelService;
 import bpr.photo.pneu.service.ImageLookupService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 
 @Service
 public class ExcelServiceImpl implements ExcelService {
@@ -54,6 +55,7 @@ public class ExcelServiceImpl implements ExcelService {
             }
 
             int imageCol = ensureColumn(headerRow, headers, props.getExcel().getOutputImageColumnName());
+            int secondaryImageCol = ensureColumn(headerRow, headers, "secondary_images");
             int statusCol = ensureColumn(headerRow, headers, props.getExcel().getOutputStatusColumnName());
 
             Path imagesDir = Path.of("output", "images");
@@ -71,32 +73,54 @@ public class ExcelServiceImpl implements ExcelService {
                     continue;
                 }
 
+                String safeEan = sanitizeFileName(ean.trim());
                 log.info("EAN lu: {}", ean);
 
-                ImageLookupService.LookupResult result = imageLookupService.findImageUrl(ean.trim());
+                ImageLookupService.LookupResult result = imageLookupService.findImages(ean.trim());
                 String finalStatus = result.status();
 
                 if ("OK".equals(result.status())) {
-                    log.info("Image trouvée pour {} : {}", ean, result.imageUrl());
+                    log.info("Image principale trouvée pour {} : {}", ean, result.imageUrl());
 
-                    Path imagePath = imagesDir.resolve(ean.trim() + ".jpg");
+                    if (!result.imageUrl().isBlank()) {
+                        try {
+                            Path primaryPath = imagesDir.resolve(safeEan + ".jpg");
+                            imageLookupService.downloadImage(result.imageUrl(), primaryPath);
+                            log.info("Image principale téléchargée pour {} : {}", ean, primaryPath.toAbsolutePath());
+                        } catch (Exception e) {
+                            log.error("Téléchargement impossible pour l'image principale de {}", ean, e);
+                            finalStatus = "DOWNLOAD_ERROR";
+                        }
+                    }
 
-                    try {
-                        imageLookupService.downloadImage(result.imageUrl(), imagePath);
-                        log.info("Image téléchargée pour {} : {}", ean, imagePath.toAbsolutePath());
-                    } catch (Exception e) {
-                        log.error("Téléchargement impossible pour l'EAN {}", ean, e);
-                        finalStatus = "DOWNLOAD_ERROR";
+                    for (int j = 0; j < result.secondaryImages().size(); j++) {
+                        String secondaryUrl = result.secondaryImages().get(j);
+
+                        try {
+                            Path secondaryPath = imagesDir.resolve(safeEan + "_secondary_" + (j + 1) + ".jpg");
+                            imageLookupService.downloadImage(secondaryUrl, secondaryPath);
+                            log.info("Image secondaire téléchargée pour {} : {}", ean, secondaryPath.toAbsolutePath());
+                        } catch (Exception e) {
+                            log.error("Téléchargement impossible pour une image secondaire de {}", ean, e);
+                            finalStatus = "DOWNLOAD_ERROR";
+                        }
                     }
                 } else {
                     log.warn("Aucune image trouvée pour {}", ean);
                 }
 
                 writeCell(row, imageCol, result.imageUrl());
+
+                StringJoiner secondaryJoiner = new StringJoiner(" | ");
+                for (String secondary : result.secondaryImages()) {
+                    secondaryJoiner.add(secondary);
+                }
+                writeCell(row, secondaryImageCol, secondaryJoiner.toString());
+
                 writeCell(row, statusCol, finalStatus);
             }
 
-            autosize(sheet, imageCol, statusCol);
+            autosize(sheet, imageCol, secondaryImageCol, statusCol);
 
             try (OutputStream os = Files.newOutputStream(outputPath)) {
                 workbook.write(os);
@@ -140,6 +164,10 @@ public class ExcelServiceImpl implements ExcelService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private String sanitizeFileName(String value) {
+        return value.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
     }
 
     private void autosize(Sheet sheet, int... indexes) {
